@@ -14,6 +14,7 @@ interface AnthropicLLMOptions {
   temperature: number;
   maxTokens?: number;
   timeoutMs?: number;
+  thinking?: { type: "enabled" | "disabled" };
 }
 
 type AnthropicRole = "user" | "assistant";
@@ -164,6 +165,7 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
           max_tokens: options.maxTokens ?? 4096,
           temperature: options.temperature,
           stream,
+          ...(options.thinking ? { thinking: options.thinking } : {}),
           ...(converted.system ? { system: converted.system } : {}),
           messages: converted.messages,
         },resolveCacheCapability({model:options.model,protocol:"anthropic",baseURL:options.baseURL}),converted.cacheBoundary)),

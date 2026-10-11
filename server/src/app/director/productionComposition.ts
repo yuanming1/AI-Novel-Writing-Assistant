@@ -3,7 +3,7 @@ import { prisma } from "../../db/prisma";
 import { createProductionStepRegistry, directorProductionPlan, createStoryMacroStepHandler, createBookContractStepHandler,
   createWorldSetupStepHandler, createCharacterSetupStepHandler, createVolumeStrategyStepHandler, createVolumeBeatSheetStepHandler,
   createChapterRouteWindowStepHandler, createVolumeChapterListStepHandler, createChapterDetailBundleStepHandler, createExecutionContractSyncStepHandler, createChapterBatchStepHandler,
-  resolveChapterQualityReports, PrismaEventLog, artifactContentHash, inferExistingAssets, type DirectorNextServiceOptions } from "../../modules/director";
+  resolveChapterQualityReports, PrismaEventLog, artifactContentHash, inferExistingAssets, type DirectorNextServiceOptions, type RunLaunchInput } from "../../modules/director";
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 import { BookContractGenerationService } from "../../services/novel/bookContract";
 import { BookContractService } from "../../services/novel/BookContractService";
@@ -26,6 +26,7 @@ import {directorArtifactTypes, resolveConfirmationArtifactTypes} from "./project
 import {readProductionProjection} from "./projections/productionProgress";
 import {assertNovelDirectorVersion, assertV2RunExecution} from "../../modules/novel/director-routing";
 import {AppError} from "../../middleware/errorHandler";
+import {normalizeVolumeWorkspaceDocument} from "../../services/novel/volume/volumeWorkspaceDocument";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -138,5 +139,26 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});
     return [{type: "novel_seed", scope: contract.scope, status: "confirmed", protectedUserContent: true, contentRef: `novel:${novel.id}`, contentHash: contentHash({novel, launchInput: contract.launchInput})},
       ...await inferExistingAssets(contract, {read: readExistingAssets, contentHash})];
+  }, validateLaunch: async (novelId: string, launchInput: RunLaunchInput) => {
+    const range = launchInput.executionRange;
+    if (!range) return;
+    const version = await prisma.volumePlanVersion.findFirst({where: {novelId, status: "active"}, orderBy: {version: "desc"}});
+    if (!version) return;
+    const workspace = normalizeVolumeWorkspaceDocument(novelId, version.contentJson, {activeVersionId: version.id});
+    if (!workspace) return;
+    const planned = workspace.volumes.flatMap(volume => volume.chapters.map(chapter => chapter.chapterOrder));
+    const routeCount = (order: number) => planned.filter(item => item === order).length;
+    if (planned.length === 0) return;
+    if (routeCount(range.from) === 0) {
+      throw new AppError(`第 ${range.from}-${range.to} 章还没有卷规划。请先在卷规划中生成对应卷的章节路线，再继续写作。`, 400);
+    }
+    // 起始章路线在多个卷中重复等异常情况保持原行为，由目标卷路由在运行中给出指引。
+    if (routeCount(range.from) !== 1) return;
+    let covered = range.from;
+    while (covered < range.to && routeCount(covered + 1) === 1) covered++;
+    if (covered >= range.to) return;
+    throw new AppError(covered === range.from
+      ? `第 ${range.from} 章之后的章节还没有卷规划。本次可以先写第 ${range.from} 章；要继续写后续章节，请先在卷规划中生成后续章节路线。`
+      : `第 ${covered + 1}-${range.to} 章还没有卷规划，本次可写的范围是第 ${range.from}-${covered} 章。请调整生成范围，或先在卷规划中生成后续章节路线。`, 400);
   }};
 }

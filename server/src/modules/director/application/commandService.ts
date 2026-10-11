@@ -62,6 +62,8 @@ export interface CommandServiceDeps {
     launchInput?: RunLaunchInput;
   }) => RunContract;
   prepareOpen?: (contract: RunContract) => Promise<readonly InitialArtifact[]>;
+  /** App-provided launch validation; rejects ranges the current plan cannot cover before a run is created. */
+  validateLaunch?: (novelId: string, launchInput: RunLaunchInput) => Promise<void>;
   gateService?: Pick<GateService, "prepare">;
 }
 
@@ -117,6 +119,7 @@ export class CommandService {
   }
 
   private async openRun(command: Extract<DirectorCommand, { type: "open_run" }>): Promise<DirectorCommandResult> {
+    if (command.launchInput) await this.deps.validateLaunch?.(command.novelId, command.launchInput);
     const activeRunId = await this.deps.runRepository.findActiveRunIdByNovel(command.novelId);
     if (activeRunId) throw new ActiveRunConflictError(activeRunId);
     const runId = this.deps.runtime.nextId();

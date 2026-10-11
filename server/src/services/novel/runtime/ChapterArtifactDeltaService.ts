@@ -389,7 +389,7 @@ export class ChapterArtifactDeltaService {
         provider: input.provider,
         model: input.model,
         temperature: Math.min(input.temperature ?? 0.2, 0.4),
-        maxTokens: 6000,
+        maxTokens: 16_384,
         novelId: input.novelId,
         chapterId: input.chapterId,
         stage: "chapter_artifact_delta",

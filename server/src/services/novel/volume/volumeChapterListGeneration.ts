@@ -280,7 +280,7 @@ async function generateBeatChapterBlock(params: {
       provider: params.options.provider,
       model: params.options.model,
       temperature: params.options.temperature ?? 0.35,
-      maxTokens: Math.min(4_800, 900 + params.beatPlan.chapterCount * 260),
+      maxTokens: 16_384,
       novelId: params.document.novelId,
       volumeId: params.targetVolume.id,
       taskId: params.options.taskId,

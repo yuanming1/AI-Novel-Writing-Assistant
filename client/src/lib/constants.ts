@@ -66,21 +66,21 @@ export function resolveApiBaseUrlForEnvironment({
   const configuredBaseUrl = config.apiBaseUrl?.trim() || env.VITE_API_BASE_URL?.trim();
   const appRuntime = resolveAppRuntime(config);
   if (!windowLocation) {
-    return configuredBaseUrl || "http://localhost:3000/api";
+    return configuredBaseUrl || "http://localhost:4000/api";
   }
 
   if (!env.DEV) {
     if (configuredBaseUrl) {
       return configuredBaseUrl;
     }
-    return appRuntime === "desktop" ? "http://localhost:3000/api" : "/api";
+    return appRuntime === "desktop" ? "http://localhost:4000/api" : "/api";
   }
 
   if (appRuntime === "web" && !configuredBaseUrl) {
     return "/api";
   }
 
-  const inferredBaseUrl = `${windowLocation.protocol}//${windowLocation.hostname}:3000/api`;
+  const inferredBaseUrl = `${windowLocation.protocol}//${windowLocation.hostname}:4000/api`;
   if (!configuredBaseUrl) {
     return inferredBaseUrl;
   }
@@ -92,7 +92,7 @@ export function resolveApiBaseUrlForEnvironment({
     }
     parsed.hostname = windowLocation.hostname;
     if (!parsed.port) {
-      parsed.port = "3000";
+      parsed.port = "4000";
     }
     return trimTrailingSlash(parsed.toString());
   } catch {

@@ -76,6 +76,7 @@ export interface ResolvedLLMClientOptions {
   reasoningEffort: ReasoningEffort | null;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
+  anthropicThinking?: { type: "enabled" | "disabled" };
   requestProtocol: ModelRouteRequestProtocol;
   executionMode: StructuredExecutionMode;
   structuredProfile?: StructuredOutputProfile | null;
@@ -325,6 +326,16 @@ export async function resolveLLMClientOptions(
   ) {
     effectiveMaxTokens = Math.min(effectiveMaxTokens, structuredProfile.safeStructuredMaxTokens);
   }
+  if (
+    requestProtocol === "anthropic"
+    && structuredProfile?.requiresNonThinkingForStructured
+    && effectiveMaxTokens == null
+  ) {
+    // anthropic 协议必须显式携带 max_tokens。思考型模型的结构化调用若未配置
+    // 上限，客户端会退回 4096 默认值；即便已关闭思考，也要给结构化正文留足
+    // 预算，避免正文被截断后报「模型没有返回可用内容」。
+    effectiveMaxTokens = 16384;
+  }
   const usesEnableThinkingFlag = Boolean(
     shouldForceDisableReasoning
       && structuredProfile?.family.includes("qwen"),
@@ -344,6 +355,11 @@ export async function resolveLLMClientOptions(
     ...(reasoningBehavior.modelKwargs ?? {}),
     ...baseModelKwargs,
   };
+  const anthropicThinking = requestProtocol === "anthropic"
+    && modelKwargs.thinking
+    && typeof modelKwargs.thinking === "object"
+    ? modelKwargs.thinking as { type: "enabled" | "disabled" }
+    : undefined;
 
   return {
     provider: resolvedProvider,
@@ -361,6 +377,7 @@ export async function resolveLLMClientOptions(
     reasoningEffort: reasoningBehavior.reasoningEffort,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
+    anthropicThinking,
     requestProtocol,
     executionMode,
     structuredProfile,
@@ -395,6 +412,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
       temperature: resolved.temperature,
       maxTokens: resolved.maxTokens,
       timeoutMs: resolved.timeoutMs,
+      thinking: resolved.anthropicThinking,
     }) as ChatOpenAI
     : new ChatOpenAI({
       apiKey: resolved.apiKey ?? "ollama",

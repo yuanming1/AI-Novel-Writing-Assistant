@@ -3,6 +3,7 @@ import {FactIntegrityError, PrismaEventLog, type RunContract, type RunControl, t
 import {parsePipelinePayload, isPipelineActiveStage} from "../../../services/novel/pipelineJobState";
 import {isCurrentChapterProductionCompleted} from "../../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../../services/novel/runtime/artifactSync";
+import {normalizeVolumeWorkspaceDocument} from "../../../services/novel/volume/volumeWorkspaceDocument";
 
 /** Read saved production facts only. Never claim a live chapter from a human-readable job label. */
 export async function readProductionProjection({contract, control}: {contract: RunContract; control: RunControl}): Promise<ProductionProjection> {
@@ -16,6 +17,18 @@ export async function readProductionProjection({contract, control}: {contract: R
   while (from <= target && written.has(from)) from++;
   let to = from;
   while (to < Math.min(target, from+2) && !written.has(to+1)) to++;
+  // 推荐范围只覆盖已保存的卷章节路线：超出部分会让运行撞上受保护内容而暂停。
+  const version = await prisma.volumePlanVersion.findFirst({where:{novelId:contract.novelId,status:"active"},orderBy:{version:"desc"}});
+  if (version) {
+    const workspace = normalizeVolumeWorkspaceDocument(contract.novelId, version.contentJson, {activeVersionId: version.id});
+    const planned = workspace ? workspace.volumes.flatMap(volume=>volume.chapters.map(chapter=>chapter.chapterOrder)) : [];
+    const routeCount = (order:number) => planned.filter(item=>item===order).length;
+    if (routeCount(from) === 1) {
+      let capped = from;
+      while (capped < to && routeCount(capped+1) === 1) capped++;
+      to = capped;
+    }
+  }
   const nextLaunchRange = from <= target ? {from, to} : null;
   if (!range) return {chapterProgress:null, nextLaunchRange};
   if (!Number.isSafeInteger(range.from) || !Number.isSafeInteger(range.to) || range.from < 1 || range.to < range.from) {

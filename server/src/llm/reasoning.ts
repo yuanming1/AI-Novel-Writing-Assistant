@@ -140,6 +140,12 @@ export function isGlmThinkingModeProvider(
   if (provider === "glm") {
     return true;
   }
+  // 自定义网关（如 new-api）上的 GLM 模型同样默认开启思考，且思考与正文共享
+  // max_tokens 预算；与 DeepSeek 的处理保持一致，显式下发 thinking 参数，
+  // 否则结构化调用无法关闭思考，低输出上限时正文会被思考阶段耗尽。
+  if (!isBuiltInProvider(provider)) {
+    return true;
+  }
   const normalizedBaseURL = normalizeOptionalText(baseURL);
   return Boolean(normalizedBaseURL && GLM_HOST_PATTERN.test(normalizedBaseURL));
 }

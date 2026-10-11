@@ -86,7 +86,7 @@ export async function generateBeatSheet(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
-      maxTokens: 2_800,
+      maxTokens: 16_384,
       novelId: document.novelId,
       volumeId: targetVolume.id,
       taskId: options.taskId,

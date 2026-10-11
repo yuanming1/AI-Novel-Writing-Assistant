@@ -40,7 +40,7 @@ function clearStaleOptimizeCache(rootDir: string): void {
 
 function resolveDevProxyTarget(): string {
   const configuredHost = process.env.HOST?.trim();
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 4000);
   const targetHost = configuredHost && !["0.0.0.0", "::"].includes(configuredHost)
     ? configuredHost
     : "127.0.0.1";
@@ -95,6 +95,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    port: 6173,
     proxy: {
       "/api": {
         target: resolveDevProxyTarget(),

@@ -27,7 +27,7 @@ import { listNovelWorldSyncRecords } from "./novelWorldSyncRecords";
 import { NovelWorldSyncService } from "./NovelWorldSyncService";
 import { normalizeStoryWorldSlice } from "../storyWorldSlice/storyWorldSlicePersistence";
 
-const NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS = 120_000;
+const NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS = 600_000;
 const NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS = 4_800;
 
 function buildGeneratedOpeningWorldSlice(input: {

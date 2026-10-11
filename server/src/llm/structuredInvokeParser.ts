@@ -372,7 +372,9 @@ export async function parseStructuredLlmRawContentDetailed<T>(
   });
   if (!input.rawContent.trim()) {
     throw buildStructuredError({
-      message: `[${input.label}] 模型没有返回可用内容，无法执行结构校验或 JSON 修复。`,
+      message: `[${input.label}] 模型没有返回可用内容，无法执行结构校验或 JSON 修复。`
+        + "常见原因是该任务的输出 Token 上限过低：思考型模型会先在思考阶段消耗该预算，"
+        + "耗尽后正文为空。可在模型路由中调高该任务的 Token 上限后重试。",
       category: "transport_error",
       retryWithNextStrategy: input.strategy !== "prompt_json",
       strategy: input.strategy,

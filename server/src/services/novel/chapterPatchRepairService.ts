@@ -85,7 +85,7 @@ export class ChapterPatchRepairService {
           provider: input.provider,
           model: input.model,
           temperature: Math.min(input.temperature ?? 0.35, 0.45),
-          maxTokens: 4200,
+          maxTokens: 16_384,
           novelId: input.novelId,
           chapterId: input.chapterId,
           stage: "chapter_patch",

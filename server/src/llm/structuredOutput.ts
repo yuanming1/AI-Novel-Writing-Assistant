@@ -163,10 +163,20 @@ export function resolveStructuredOutputProfile(input: {
   const isModelScopeQwen = MODELSCOPE_HOST_PATTERN.test(host) || provider.includes("modelscope");
 
   if (input.requestProtocol === "anthropic") {
+    // GLM/DeepSeek 类思考模型经 anthropic 协议输出时，思考与正文共享 max_tokens
+    // 预算。结构化调用必须显式关闭思考，否则输出上限会把预算耗尽在思考阶段，
+    // 正文为空并报「模型没有返回可用内容」。
+    const supportsThinkingToggle = isGlmThinkingModeProvider(
+      input.provider,
+      input.baseURL,
+      input.model,
+    ) || isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model);
     return buildProfile({
       family: "anthropic",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
+      requiresNonThinkingForStructured: supportsThinkingToggle,
+      supportsReasoningToggle: supportsThinkingToggle,
+      safeStructuredMaxTokens: supportsThinkingToggle ? 16384 : 8192,
     });
   }
   if (usesOfficialEndpoint("gemini", GEMINI_HOST_PATTERN)) {
@@ -284,10 +294,17 @@ export function resolveStructuredOutputProfile(input: {
     });
   }
   if (customProvider) {
+    const supportsThinkingToggle = isGlmThinkingModeProvider(
+      input.provider,
+      input.baseURL,
+      input.model,
+    ) || isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model);
     return buildProfile({
       family: qwenFamily ? "custom_openai_compatible_qwen" : "custom_openai_compatible",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
+      requiresNonThinkingForStructured: supportsThinkingToggle,
+      supportsReasoningToggle: supportsThinkingToggle,
+      safeStructuredMaxTokens: supportsThinkingToggle ? 16384 : 8192,
     });
   }
   return buildProfile({
