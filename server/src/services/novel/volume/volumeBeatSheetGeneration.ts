@@ -53,6 +53,7 @@ export async function generateBeatSheet(params: {
     volumeCount: Math.max(document.volumes.length, 1),
     chapterBudget,
     existingVolumes: document.volumes,
+    beatSheets: document.beatSheets,
   });
   const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
   const targetChapterCount = resolveBeatSheetTargetChapterCount({

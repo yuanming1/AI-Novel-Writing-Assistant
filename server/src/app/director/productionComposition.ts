@@ -149,10 +149,9 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const planned = workspace.volumes.flatMap(volume => volume.chapters.map(chapter => chapter.chapterOrder));
     const routeCount = (order: number) => planned.filter(item => item === order).length;
     if (planned.length === 0) return;
-    if (routeCount(range.from) === 0) {
-      throw new AppError(`第 ${range.from}-${range.to} 章还没有卷规划。请先在卷规划中生成对应卷的章节路线，再继续写作。`, 400);
-    }
-    // 起始章路线在多个卷中重复等异常情况保持原行为，由目标卷路由在运行中给出指引。
+    // 起始章完全没有路线（滚动推进到已规划路线末尾的常态）或多卷重复时放行：
+    // 前者由运行中的 JIT 路线窗口（volume_beat_sheet / chapter_route_window 的 ensureRouteWindow）补齐，
+    // 后者由目标卷路由在运行中给出指引。只拦截起始章有唯一路线但范围内断档的部分覆盖。
     if (routeCount(range.from) !== 1) return;
     let covered = range.from;
     while (covered < range.to && routeCount(covered + 1) === 1) covered++;

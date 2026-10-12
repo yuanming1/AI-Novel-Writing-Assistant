@@ -16,12 +16,12 @@
 ## 当前规则（2026-10-11 修复后）
 
 - **推荐范围只覆盖已规划章节**（`app/director/projections/productionProgress.ts`）：`nextLaunchRange.to` 收敛到从起始章起连续存在的卷章节路线，起始章本身无路线时保持原行为。
-- **open_run 启动校验**（`app/director/productionComposition.ts` 的 `validateLaunch`，经 `modules/director` 的 `CommandService.validateLaunch` 端口在创建运行前调用）：起始章有路线但范围内后续章节没有时，直接返回 400 与可写的最大范围，并指引用户先补全卷规划；起始章完全没有路线时保持原行为（由目标卷路由在运行中给出指引）。
+- **open_run 启动校验**（`app/director/productionComposition.ts` 的 `validateLaunch`，经 `modules/director` 的 `CommandService.validateLaunch` 端口在创建运行前调用）：起始章有路线但范围内后续章节没有时，直接返回 400 与可写的最大范围，并指引用户先补全卷规划；起始章完全没有路线时放行，由运行中的 JIT 路线窗口（`volume_beat_sheet` / `chapter_route_window` 的 `ensureRouteWindow`）补齐后续路线。
 - 修复前 UI 会推荐"继续写第 3—5 章"（只看已写章节与全书目标章数，不看规划覆盖），用户点击后必然触发本错误并死锁暂停。
 
 ## 后续待办
 
-- 规划章节全部写完后（如卷一 1—3 章写完、卷二未规划），"继续写作"入口尚未与"补全下一卷规划"打通，需要用户先去卷规划页生成后续路线，或通过无范围的全量运行补规划。
+- ~~规划章节全部写完后（如卷一 1—3 章写完、卷二未规划），"继续写作"入口尚未与"补全下一卷规划"打通~~（2026-10-12 已解决）：滚动推进到已规划路线末尾时（例如写完第 60 章、第 61 章还没有路线），直接提交后续范围即可，运行中的 JIT 路线窗口会自动补齐下一批章节路线（必要时扩展后续卷骨架），用户不需要先去卷规划页手动补路线。若只想补规划不写正文，仍可在提交面板取消"生成指定章节正文"。
 
 ## 当前规则
 

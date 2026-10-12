@@ -1,9 +1,13 @@
-import type { VolumePlan } from "@ai-novel/shared/types/novel";
+import type { VolumeBeatSheet, VolumePlan } from "@ai-novel/shared/types/novel";
 import type {
   VolumeGenerateOptions,
   VolumeGenerationNovel,
   VolumeWorkspace,
 } from "./volumeModels";
+import {
+  inferRequiredChapterCountFromBeatSheet,
+  sumBeatSheetChapterSpanCounts,
+} from "./volumeBeatSheetChapterBudget";
 
 export function deriveChapterBudget(params: {
   novel: VolumeGenerationNovel;
@@ -38,18 +42,35 @@ function shouldUseExistingVolumeWeights(existingCounts: number[], minimumPerVolu
     && existingCounts.every((count) => count >= minimumPerVolume);
 }
 
+/**
+ * A partially generated volume (JIT route window has only committed a few chapters)
+ * must not have its planned size mistaken for the few routes committed so far.
+ * The volume's own beat sheet is the authoritative declared scale.
+ */
+export function resolveVolumePlanScale(volume: Pick<VolumePlan, "id" | "chapters">, beatSheets: readonly VolumeBeatSheet[] | null | undefined): number {
+  const beatSheet = beatSheets?.find((sheet) => sheet.volumeId === volume.id);
+  if (!beatSheet) return volume.chapters.length;
+  const plannedCount = sumBeatSheetChapterSpanCounts(beatSheet);
+  const requiredCount = inferRequiredChapterCountFromBeatSheet(beatSheet);
+  return Math.max(volume.chapters.length, plannedCount, requiredCount);
+}
+
 export function allocateChapterBudgets(params: {
   volumeCount: number;
   chapterBudget: number;
   existingVolumes: VolumePlan[];
+  beatSheets?: readonly VolumeBeatSheet[];
 }): number[] {
-  const { volumeCount, chapterBudget, existingVolumes } = params;
+  const { volumeCount, chapterBudget, existingVolumes, beatSheets } = params;
   const safeVolumeCount = Math.max(volumeCount, 1);
   const minimumPerVolume = 3;
   const totalBudget = Math.max(chapterBudget, safeVolumeCount * minimumPerVolume);
   const existingCounts = Array.from(
     { length: safeVolumeCount },
-    (_, index) => Math.max(existingVolumes[index]?.chapters.length ?? 0, 0),
+    (_, index) => {
+      const volume = existingVolumes[index];
+      return volume ? Math.max(resolveVolumePlanScale(volume, beatSheets ?? []), 0) : 0;
+    },
   );
 
   if (!shouldUseExistingVolumeWeights(existingCounts, minimumPerVolume)) {
